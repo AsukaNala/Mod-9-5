@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width,
+initial-scale=1.0"
+    />
+    <title>Socket Chat App</title>
+  </head>
+  <body>
+    <h2>Welcome to Socket Chat<span id="userCount"></span>!</h2>
+    <ul id="messages"></ul>
+    <form id="nameForm" action="">
+      <label
+        >Nickname
+        <input type="text" id="nickname" />
+      </label>
+      <button>Send</button>
+    </form>
+
+    <form id="chatForm" action="" class="hidden">
+      <span id="typingStatus"></span>
+
+      <input id="chatMessage" autocomplete="off" /><button>Send</button>
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      let socket = io();
+      //socket.on("connection", (msg) => console.log(msg));
+      let messages = document.getElementById("messages");
+      let chatForm = document.getElementById("chatForm");
+      let chatMessage = document.getElementById("chatMessage");
+      let nickname = document.getElementById("nickname");
+
+      window.onload = () => socket.emit("new user");
+
+      function updateUserCount(msg) {
+        console.log(msg);
+        if (msg.totalUsers) {
+          document.getElementById("userCount").innerText =
+            msg.totalUsers === 1
+              ? "1 user is chatting"
+              : msg.totalUsers + " users are chatting";
+        }
+      }
+
+      function printMsg(msg) {
+        let item = document.createElement("li");
+        item.textContent = msg.nickname
+          ? msg.nickname + ":" + msg.text
+          : msg.text;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+      }
+
+      chatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (chatMessage.value) {
+          socket.emit("chat message", {
+            nickname: nickname.value,
+            text: chatMessage.value,
+          });
+          chatMessage.value = "";
+        }
+      });
+
+      nameForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (nickname.value) {
+          socket.emit("set nickname", nickname.value);
+          nameForm.className = "hidden";
+          chatForm.className = "";
+        }
+      });
+
+      chatMessage.addEventListener("keypress", () => {
+        socket.emit("typing", nickname.value);
+      });
+
+      socket.on("new user", (msg) => {
+        updateUserCount(msg);
+        printMsg(msg, "new user");
+      });
+      socket.on("disconnected", (msg) => {
+        updateUserCount(msg);
+        printMsg(msg, "disconnected");
+      });
+      socket.on("chat message", (msg) => printMsg(msg, "chat msg"));
+      socket.on("typing", (name) => {
+        document.getElementById("typingStatus").innerText =
+          name + " is typing...";
+      });
+      socket.on("not typing", () => {
+        document.getElementById("typingStatus").innerText = "";
+      });
+    </script>
+  </body>
+</html>
